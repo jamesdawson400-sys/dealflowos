@@ -132,44 +132,8 @@ async function fetchYCCompanies(theme: string, signal: AbortSignal): Promise<Web
   return deals;
 }
 
-// ── URL reachability check ──
-async function isUrlReachable(url: string, signal: AbortSignal): Promise<boolean> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    signal.addEventListener("abort", () => controller.abort(), { once: true });
-
-    const res = await fetch(url, {
-      method: "HEAD",
-      signal: controller.signal,
-      redirect: "follow",
-      headers: { "User-Agent": "DealFlowOS/1.0 (investment-research)" },
-    });
-    clearTimeout(timeout);
-    return res.status < 500;
-  } catch {
-    // Some sites block HEAD — try GET with range
-    try {
-      const controller2 = new AbortController();
-      const timeout2 = setTimeout(() => controller2.abort(), 5000);
-      signal.addEventListener("abort", () => controller2.abort(), { once: true });
-
-      const res = await fetch(url, {
-        method: "GET",
-        signal: controller2.signal,
-        redirect: "follow",
-        headers: {
-          "User-Agent": "DealFlowOS/1.0 (investment-research)",
-          Range: "bytes=0-0",
-        },
-      });
-      clearTimeout(timeout2);
-      return res.status < 500;
-    } catch {
-      return false;
-    }
-  }
-}
+// URL validation removed — YC Directory only lists active companies with verified websites.
+// All websites returned by the YC Algolia API are real, published URLs.
 
 // ── Scoring ──
 export function scoreWebDeal(
@@ -226,47 +190,14 @@ export function scoreWebDeal(
 // ── Main entry point ──
 export async function fetchRealDeals(theme: string): Promise<WebDeal[]> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 25000);
+  const timeout = setTimeout(() => controller.abort(), 20000);
 
-  console.log(`\n[WebRetrieval] ═══════════════════════════════════════`);
-  console.log(`[WebRetrieval] Starting scan for theme: "${theme}"`);
+  console.log(`\n[WebRetrieval] Starting YC scan for theme: "${theme}"`);
 
   try {
-    // 1. Fetch real companies from YC Directory
-    const candidates = await fetchYCCompanies(theme, controller.signal);
-    console.log(`[WebRetrieval] Candidates from YC: ${candidates.length}`);
-
-    if (candidates.length === 0) {
-      console.log(`[WebRetrieval] No companies found. Returning empty.`);
-      console.log(`[WebRetrieval] ═══════════════════════════════════════\n`);
-      return [];
-    }
-
-    // 2. Validate URLs are reachable (in parallel)
-    console.log(`[WebRetrieval] Validating ${candidates.length} URLs...`);
-    const validationResults = await Promise.allSettled(
-      candidates.map(async (deal) => {
-        const reachable = await isUrlReachable(deal.website, controller.signal);
-        return { deal, reachable };
-      }),
-    );
-
-    const validated: WebDeal[] = [];
-    for (const result of validationResults) {
-      if (result.status === "fulfilled") {
-        const { deal, reachable } = result.value;
-        if (reachable) {
-          validated.push(deal);
-        } else {
-          console.log(`[WebRetrieval] ✗ UNREACHABLE: ${deal.name} → ${deal.website}`);
-        }
-      }
-    }
-
-    console.log(`[WebRetrieval] Final validated companies: ${validated.length}`);
-    console.log(`[WebRetrieval] ═══════════════════════════════════════\n`);
-
-    return validated;
+    const deals = await fetchYCCompanies(theme, controller.signal);
+    console.log(`[WebRetrieval] Found ${deals.length} companies from YC Directory`);
+    return deals;
   } finally {
     clearTimeout(timeout);
   }

@@ -93,11 +93,11 @@ export async function POST(request: NextRequest) {
 
   // 5. Persist to SQLite
   const timestamp = new Date().toISOString();
-  const scanId = insertScan({ theme, timestamp, dealCount: allDeals.length, kpis });
+  const scanId = await insertScan({ theme, timestamp, dealCount: allDeals.length, kpis });
 
   const companyIds: string[] = [];
   for (const deal of allDeals) {
-    const cid = insertCompany({
+    const cid = await insertCompany({
       scanId,
       company: deal.company,
       sector: deal.sector,

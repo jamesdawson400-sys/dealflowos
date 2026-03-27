@@ -19,7 +19,8 @@
       "Bash(curl -sv -X POST http://localhost:3001/api/scan -H 'Content-Type: application/json' -d '{\"\"\"\"theme\"\"\"\":\"\"\"\"fintech\"\"\"\"}')",
       "Bash(npm run:*)",
       "Bash(curl -s -X POST http://localhost:3001/api/scan -H 'Content-Type: application/json' -d '{\"\"\"\"theme\"\"\"\":\"\"\"\"cybersecurity\"\"\"\"}')",
-      "Bash(pkill -f \"next dev\")"
+      "Bash(pkill -f \"next dev\")",
+      "Bash(npm uninstall:*)"
     ]
   }
 }

@@ -11,7 +11,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ error: "Invalid pipeline stage" }, { status: 400 });
   }
 
-  const company = updatePipelineStage(id, stage);
+  const company = await updatePipelineStage(id, stage);
   if (!company) {
     return NextResponse.json({ error: "Company not found" }, { status: 404 });
   }

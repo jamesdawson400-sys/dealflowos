@@ -4,6 +4,6 @@ import { getInitData } from "@/lib/db";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const data = getInitData();
+  const data = await getInitData();
   return NextResponse.json(data);
 }

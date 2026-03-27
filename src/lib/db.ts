@@ -1,20 +1,52 @@
-import Database from "better-sqlite3";
+import { createClient, type Client, type InArgs } from "@libsql/client";
 import path from "path";
 import crypto from "crypto";
 
-// ── Singleton connection ──
-let _db: Database.Database | null = null;
+// ── Singleton client ──
+let _client: Client | null = null;
+let _dbAvailable: boolean | null = null;
 
-function getDb(): Database.Database {
-  if (_db) return _db;
+function isLocalEnv(): boolean {
+  return process.env.VERCEL !== "1" && process.env.NODE_ENV !== "production";
+}
 
-  const dbPath = path.join(process.cwd(), "data", "dealflow.db");
-  _db = new Database(dbPath);
-  _db.pragma("journal_mode = WAL");
-  _db.pragma("foreign_keys = ON");
+function getClient(): Client | null {
+  if (_dbAvailable === false) return null;
+  if (_client) return _client;
 
-  // Create schema
-  _db.exec(`
+  const url = process.env.TURSO_DATABASE_URL;
+  const authToken = process.env.TURSO_AUTH_TOKEN;
+
+  if (url && url.startsWith("libsql://")) {
+    _client = createClient({ url, authToken: authToken ?? "" });
+    _dbAvailable = true;
+  } else if (url && url.startsWith("file:")) {
+    _client = createClient({ url });
+    _dbAvailable = true;
+  } else if (isLocalEnv()) {
+    // Local dev: use file-based SQLite
+    const dbPath = path.join(process.cwd(), "data", "dealflow.db");
+    _client = createClient({ url: `file:${dbPath}` });
+    _dbAvailable = true;
+  } else {
+    // Vercel without Turso — skip DB, scans still work
+    console.log("[DB] No database configured. Running in stateless mode.");
+    _dbAvailable = false;
+    return null;
+  }
+
+  return _client;
+}
+
+// ── Schema init (called once at startup / on first API request) ──
+let schemaInitialised = false;
+
+export async function ensureSchema(): Promise<void> {
+  if (schemaInitialised) return;
+  const db = getClient();
+  if (!db) { schemaInitialised = true; return; }
+
+  await db.executeMultiple(`
     CREATE TABLE IF NOT EXISTS scans (
       id            TEXT PRIMARY KEY,
       theme         TEXT NOT NULL,
@@ -84,11 +116,25 @@ function getDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_notes_company ON notes(company_id);
   `);
 
-  return _db;
+  schemaInitialised = true;
 }
 
 function uuid(): string {
   return crypto.randomUUID();
+}
+
+// Helper: extract rows as typed objects
+function rows<T>(result: Awaited<ReturnType<Client["execute"]>>): T[] {
+  const { columns, rows } = result;
+  return rows.map((row) => {
+    const obj: Record<string, unknown> = {};
+    columns.forEach((col, i) => { obj[col] = row[i]; });
+    return obj as T;
+  });
+}
+
+function firstRow<T>(result: Awaited<ReturnType<Client["execute"]>>): T | undefined {
+  return rows<T>(result)[0];
 }
 
 // ── Types ──
@@ -112,8 +158,8 @@ export interface DbCompany {
   score: number;
   status: string;
   pipeline_stage: string;
-  thesis: string; // JSON array
-  risks: string;  // JSON array
+  thesis: string;
+  risks: string;
   founders: string;
   last_activity: string;
   raised: string;
@@ -148,44 +194,52 @@ export interface DbActivity {
 }
 
 // ── Scan operations ──
-export function insertScan(data: {
+export async function insertScan(data: {
   theme: string;
   timestamp: string;
   dealCount: number;
   kpis: { dealsInInbox: number; highPriority: number; inPartnerReview: number; watchlistCompanies: number };
-}): string {
-  const db = getDb();
+}): Promise<string> {
+  await ensureSchema();
+  const db = getClient();
   const id = uuid();
-  db.prepare(`
-    INSERT INTO scans (id, theme, timestamp, deal_count, kpi_inbox, kpi_high, kpi_partner, kpi_watchlist)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    id,
-    data.theme,
-    data.timestamp,
-    data.dealCount,
-    data.kpis.dealsInInbox,
-    data.kpis.highPriority,
-    data.kpis.inPartnerReview,
-    data.kpis.watchlistCompanies,
-  );
+  if (!db) return id; // stateless mode — return a fake id, scan still works
+  await db.execute({
+    sql: `INSERT INTO scans (id, theme, timestamp, deal_count, kpi_inbox, kpi_high, kpi_partner, kpi_watchlist)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [id, data.theme, data.timestamp, data.dealCount,
+      data.kpis.dealsInInbox, data.kpis.highPriority,
+      data.kpis.inPartnerReview, data.kpis.watchlistCompanies] as InArgs,
+  });
   return id;
 }
 
-export function getScan(id: string): DbScan | undefined {
-  return getDb().prepare("SELECT * FROM scans WHERE id = ?").get(id) as DbScan | undefined;
+export async function getScan(id: string): Promise<DbScan | undefined> {
+  await ensureSchema();
+  const db = getClient();
+  if (!db) return undefined;
+  const result = await db.execute({ sql: "SELECT * FROM scans WHERE id = ?", args: [id] });
+  return firstRow<DbScan>(result);
 }
 
-export function listScans(): DbScan[] {
-  return getDb().prepare("SELECT * FROM scans ORDER BY timestamp DESC").all() as DbScan[];
+export async function listScans(): Promise<DbScan[]> {
+  await ensureSchema();
+  const db = getClient();
+  if (!db) return [];
+  const result = await db.execute("SELECT * FROM scans ORDER BY timestamp DESC");
+  return rows<DbScan>(result);
 }
 
-export function getLatestScan(): DbScan | undefined {
-  return getDb().prepare("SELECT * FROM scans ORDER BY timestamp DESC LIMIT 1").get() as DbScan | undefined;
+export async function getLatestScan(): Promise<DbScan | undefined> {
+  await ensureSchema();
+  const db = getClient();
+  if (!db) return undefined;
+  const result = await db.execute("SELECT * FROM scans ORDER BY timestamp DESC LIMIT 1");
+  return firstRow<DbScan>(result);
 }
 
 // ── Company operations ──
-export function insertCompany(data: {
+export async function insertCompany(data: {
   scanId: string;
   company: string;
   sector: string;
@@ -207,60 +261,78 @@ export function insertCompany(data: {
   momentum: number;
   volatility: number;
   thematicFit: number;
-}): string {
-  const db = getDb();
+}): Promise<string> {
+  await ensureSchema();
+  const db = getClient();
   const id = uuid();
-  db.prepare(`
-    INSERT INTO companies (
-      id, scan_id, company, sector, stage, score, status, pipeline_stage,
-      thesis, risks, founders, last_activity, raised, location,
-      website, description, source_url, source_name,
-      growth, momentum, volatility, thematic_fit
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    id, data.scanId, data.company, data.sector, data.stage, data.score,
-    data.status, data.pipelineStage,
-    JSON.stringify(data.thesis), JSON.stringify(data.risks),
-    data.founders, data.lastActivity, data.raised, data.location,
-    data.website ?? null, data.description ?? null,
-    data.sourceUrl ?? null, data.sourceName ?? null,
-    data.growth, data.momentum, data.volatility, data.thematicFit,
-  );
+  if (!db) return id; // stateless mode
 
-  // Score breakdown
-  db.prepare(`
-    INSERT INTO score_breakdowns (company_id, growth, momentum, volatility, thematic_fit)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(id, data.growth, data.momentum, data.volatility, data.thematicFit);
+  await db.execute({
+    sql: `INSERT INTO companies (
+            id, scan_id, company, sector, stage, score, status, pipeline_stage,
+            thesis, risks, founders, last_activity, raised, location,
+            website, description, source_url, source_name,
+            growth, momentum, volatility, thematic_fit
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [
+      id, data.scanId, data.company, data.sector, data.stage, data.score,
+      data.status, data.pipelineStage,
+      JSON.stringify(data.thesis), JSON.stringify(data.risks),
+      data.founders, data.lastActivity, data.raised, data.location,
+      data.website ?? null, data.description ?? null,
+      data.sourceUrl ?? null, data.sourceName ?? null,
+      data.growth, data.momentum, data.volatility, data.thematicFit,
+    ] as InArgs,
+  });
 
-  // Activity log
-  db.prepare(`
-    INSERT INTO activity_log (id, company_id, action, company_name, type, created_at)
-    VALUES (?, ?, ?, ?, ?, datetime('now'))
-  `).run(uuid(), id, "New deal discovered", data.company, "new");
+  await db.execute({
+    sql: `INSERT INTO score_breakdowns (company_id, growth, momentum, volatility, thematic_fit)
+          VALUES (?, ?, ?, ?, ?)`,
+    args: [id, data.growth, data.momentum, data.volatility, data.thematicFit] as InArgs,
+  });
+
+  await db.execute({
+    sql: `INSERT INTO activity_log (id, company_id, action, company_name, type, created_at)
+          VALUES (?, ?, ?, ?, ?, datetime('now'))`,
+    args: [uuid(), id, "New deal discovered", data.company, "new"] as InArgs,
+  });
 
   return id;
 }
 
-export function getCompany(id: string): DbCompany | undefined {
-  return getDb().prepare("SELECT * FROM companies WHERE id = ?").get(id) as DbCompany | undefined;
+export async function getCompany(id: string): Promise<DbCompany | undefined> {
+  await ensureSchema();
+  const db = getClient();
+  if (!db) return undefined;
+  const result = await db.execute({ sql: "SELECT * FROM companies WHERE id = ?", args: [id] });
+  return firstRow<DbCompany>(result);
 }
 
-export function getCompaniesByScan(scanId: string): DbCompany[] {
-  return getDb()
-    .prepare("SELECT * FROM companies WHERE scan_id = ? ORDER BY score DESC")
-    .all(scanId) as DbCompany[];
+export async function getCompaniesByScan(scanId: string): Promise<DbCompany[]> {
+  await ensureSchema();
+  const db = getClient();
+  if (!db) return [];
+  const result = await db.execute({
+    sql: "SELECT * FROM companies WHERE scan_id = ? ORDER BY score DESC",
+    args: [scanId],
+  });
+  return rows<DbCompany>(result);
 }
 
-export function getWatchlistedCompanies(): DbCompany[] {
-  return getDb()
-    .prepare("SELECT * FROM companies WHERE is_watchlisted = 1 ORDER BY score DESC")
-    .all() as DbCompany[];
+export async function getWatchlistedCompanies(): Promise<DbCompany[]> {
+  await ensureSchema();
+  const db = getClient();
+  if (!db) return [];
+  const result = await db.execute(
+    "SELECT * FROM companies WHERE is_watchlisted = 1 ORDER BY score DESC"
+  );
+  return rows<DbCompany>(result);
 }
 
-export function updatePipelineStage(companyId: string, stage: string): DbCompany | undefined {
-  const db = getDb();
-  // Derive status from stage
+export async function updatePipelineStage(companyId: string, stage: string): Promise<DbCompany | undefined> {
+  await ensureSchema();
+  const db = getClient();
+  if (!db) return undefined;
   const statusMap: Record<string, string> = {
     "Partner Review": "High Priority",
     "First Pass": "In Review",
@@ -271,83 +343,109 @@ export function updatePipelineStage(companyId: string, stage: string): DbCompany
   };
   const status = statusMap[stage] ?? "In Review";
 
-  db.prepare(`
-    UPDATE companies SET pipeline_stage = ?, status = ?, updated_at = datetime('now')
-    WHERE id = ?
-  `).run(stage, status, companyId);
+  await db.execute({
+    sql: `UPDATE companies SET pipeline_stage = ?, status = ?, updated_at = datetime('now') WHERE id = ?`,
+    args: [stage, status, companyId] as InArgs,
+  });
 
-  const company = getCompany(companyId);
+  const company = await getCompany(companyId);
   if (company) {
-    db.prepare(`
-      INSERT INTO activity_log (id, company_id, action, company_name, type, created_at)
-      VALUES (?, ?, ?, ?, ?, datetime('now'))
-    `).run(uuid(), companyId, `Moved to ${stage}`, company.company, "pipeline");
+    await db.execute({
+      sql: `INSERT INTO activity_log (id, company_id, action, company_name, type, created_at)
+            VALUES (?, ?, ?, ?, ?, datetime('now'))`,
+      args: [uuid(), companyId, `Moved to ${stage}`, company.company, "pipeline"] as InArgs,
+    });
   }
   return company;
 }
 
-export function toggleWatchlist(companyId: string): DbCompany | undefined {
-  const db = getDb();
-  const company = getCompany(companyId);
+export async function toggleWatchlist(companyId: string): Promise<DbCompany | undefined> {
+  await ensureSchema();
+  const db = getClient();
+  if (!db) return undefined;
+  const company = await getCompany(companyId);
   if (!company) return undefined;
 
   const newVal = company.is_watchlisted ? 0 : 1;
-  db.prepare("UPDATE companies SET is_watchlisted = ?, updated_at = datetime('now') WHERE id = ?").run(
-    newVal,
-    companyId,
-  );
+  await db.execute({
+    sql: "UPDATE companies SET is_watchlisted = ?, updated_at = datetime('now') WHERE id = ?",
+    args: [newVal, companyId] as InArgs,
+  });
 
   const action = newVal ? "Added to Watchlist" : "Removed from Watchlist";
-  db.prepare(`
-    INSERT INTO activity_log (id, company_id, action, company_name, type, created_at)
-    VALUES (?, ?, ?, ?, ?, datetime('now'))
-  `).run(uuid(), companyId, action, company.company, "watchlist");
+  await db.execute({
+    sql: `INSERT INTO activity_log (id, company_id, action, company_name, type, created_at)
+          VALUES (?, ?, ?, ?, ?, datetime('now'))`,
+    args: [uuid(), companyId, action, company.company, "watchlist"] as InArgs,
+  });
 
   return getCompany(companyId);
 }
 
 // ── Notes ──
-export function insertNote(companyId: string, content: string): DbNote {
-  const db = getDb();
+export async function insertNote(companyId: string, content: string): Promise<DbNote> {
+  await ensureSchema();
+  const db = getClient();
   const id = uuid();
-  db.prepare("INSERT INTO notes (id, company_id, content) VALUES (?, ?, ?)").run(id, companyId, content);
+  if (!db) return { id, company_id: companyId, content, created_at: new Date().toISOString() };
 
-  const company = getCompany(companyId);
+  await db.execute({
+    sql: "INSERT INTO notes (id, company_id, content) VALUES (?, ?, ?)",
+    args: [id, companyId, content] as InArgs,
+  });
+
+  const company = await getCompany(companyId);
   if (company) {
-    db.prepare(`
-      INSERT INTO activity_log (id, company_id, action, company_name, type, created_at)
-      VALUES (?, ?, ?, ?, ?, datetime('now'))
-    `).run(uuid(), companyId, "Note added", company.company, "note");
+    await db.execute({
+      sql: `INSERT INTO activity_log (id, company_id, action, company_name, type, created_at)
+            VALUES (?, ?, ?, ?, ?, datetime('now'))`,
+      args: [uuid(), companyId, "Note added", company.company, "note"] as InArgs,
+    });
   }
 
-  return db.prepare("SELECT * FROM notes WHERE id = ?").get(id) as DbNote;
+  const result = await db.execute({ sql: "SELECT * FROM notes WHERE id = ?", args: [id] });
+  return firstRow<DbNote>(result)!;
 }
 
-export function getNotes(companyId: string): DbNote[] {
-  return getDb()
-    .prepare("SELECT * FROM notes WHERE company_id = ? ORDER BY created_at DESC")
-    .all(companyId) as DbNote[];
+export async function getNotes(companyId: string): Promise<DbNote[]> {
+  await ensureSchema();
+  const db = getClient();
+  if (!db) return [];
+  const result = await db.execute({
+    sql: "SELECT * FROM notes WHERE company_id = ? ORDER BY created_at DESC",
+    args: [companyId],
+  });
+  return rows<DbNote>(result);
 }
 
 // ── Activity log ──
-export function getActivityLog(limit = 20): DbActivity[] {
-  return getDb()
-    .prepare("SELECT * FROM activity_log ORDER BY created_at DESC LIMIT ?")
-    .all(limit) as DbActivity[];
+export async function getActivityLog(limit = 20): Promise<DbActivity[]> {
+  await ensureSchema();
+  const db = getClient();
+  if (!db) return [];
+  const result = await db.execute({
+    sql: "SELECT * FROM activity_log ORDER BY created_at DESC LIMIT ?",
+    args: [limit],
+  });
+  return rows<DbActivity>(result);
 }
 
-// ── Dashboard init (latest state) ──
-export function getInitData(): {
+// ── Dashboard init ──
+export async function getInitData(): Promise<{
   scan: DbScan | null;
   companies: DbCompany[];
   activity: DbActivity[];
   watchlist: DbCompany[];
   scanCount: number;
-} {
-  const scan = getLatestScan() ?? null;
-  const companies = scan ? getCompaniesByScan(scan.id) : [];
-  const activity = getActivityLog(15);
-  const watchlist = getWatchlistedCompanies();
-  const scanCount = (getDb().prepare("SELECT COUNT(*) as cnt FROM scans").get() as { cnt: number }).cnt;
+}> {
+  await ensureSchema();
+  const db = getClient();
+  if (!db) return { scan: null, companies: [], activity: [], watchlist: [], scanCount: 0 };
+  const scan = await getLatestScan() ?? null;
+  const companies = scan ? await getCompaniesByScan(scan.id) : [];
+  const activity = await getActivityLog(15);
+  const watchlist = await getWatchlistedCompanies();
+  const countResult = await db.execute("SELECT COUNT(*) as cnt FROM scans");
+  const scanCount = Number(firstRow<{ cnt: number }>(countResult)?.cnt ?? 0);
   return { scan, companies, activity, watchlist, scanCount };
 }

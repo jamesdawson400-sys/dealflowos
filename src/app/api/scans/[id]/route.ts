@@ -5,10 +5,10 @@ export const dynamic = "force-dynamic";
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const scan = getScan(id);
+  const scan = await getScan(id);
   if (!scan) {
     return NextResponse.json({ error: "Scan not found" }, { status: 404 });
   }
-  const companies = getCompaniesByScan(id);
+  const companies = await getCompaniesByScan(id);
   return NextResponse.json({ scan, companies });
 }
