@@ -1,0 +1,188 @@
+export interface Deal {
+  id: string;
+  company: string;
+  sector: string;
+  stage: string;
+  score: number;
+  status: string;
+  pipelineStage: string;
+  thesis: string;
+  risks: string;
+  founders: string;
+  lastActivity: string;
+  raised: string;
+  location: string;
+}
+
+export const deals: Deal[] = [
+  {
+    id: "1",
+    company: "Luminance AI",
+    sector: "Enterprise AI",
+    stage: "Series A",
+    score: 92,
+    status: "High Priority",
+    pipelineStage: "Partner Review",
+    thesis: "Building next-gen contract intelligence for legal teams. Strong NLP moat with proprietary transformer architecture trained on 150M+ legal documents. Land-and-expand in AM Law 100 firms with 3x net revenue retention.",
+    risks: "Long enterprise sales cycles. Incumbents (Kira, eBrevia) may respond. Regulatory uncertainty around AI in legal.",
+    founders: "Sarah Chen (ex-DeepMind), Marcus Webb (ex-Latham & Watkins)",
+    lastActivity: "2h ago",
+    raised: "$4.2M Seed",
+    location: "San Francisco, CA",
+  },
+  {
+    id: "2",
+    company: "Vantage Carbon",
+    sector: "Climate Tech",
+    stage: "Seed",
+    score: 88,
+    status: "New",
+    pipelineStage: "New",
+    thesis: "MRV platform for voluntary carbon markets. Hardware + software approach to measurement creates defensible data layer. First-mover in direct air capture verification with partnerships across 12 offset registries.",
+    risks: "Hardware capex intensive. Carbon market regulatory framework still evolving. Competing approaches from satellite-based providers.",
+    founders: "Dr. Priya Anand (MIT Climate Lab), Tom Fischer (ex-Stripe Climate)",
+    lastActivity: "4h ago",
+    raised: "$1.8M Pre-Seed",
+    location: "Boston, MA",
+  },
+  {
+    id: "3",
+    company: "Parabolic Health",
+    sector: "Digital Health",
+    stage: "Series A",
+    score: 85,
+    status: "In Review",
+    pipelineStage: "Reviewing",
+    thesis: "AI copilot for clinical trial design. Reduces trial design time by 60% and improves patient matching accuracy. Strong traction with 4 of top 10 pharma companies. $280K ARR growing 30% MoM.",
+    risks: "FDA regulatory pathway uncertain for AI-assisted trial design. Key-person risk on CTO. Concentration in oncology trials.",
+    founders: "Dr. James Liu (ex-Genentech), Anna Kowalski (ex-Flatiron Health)",
+    lastActivity: "1d ago",
+    raised: "$6.1M Seed",
+    location: "New York, NY",
+  },
+  {
+    id: "4",
+    company: "Nexus Freight",
+    sector: "Logistics / Supply Chain",
+    stage: "Seed",
+    score: 79,
+    status: "Reviewing",
+    pipelineStage: "First Pass",
+    thesis: "Dynamic pricing engine for mid-market freight brokers. Replaces manual RFQ process with real-time market-aware pricing. 15 paying customers, $180K ARR. Strong unit economics at 78% gross margin.",
+    risks: "Freight market cyclicality. Incumbents like Flexport moving downmarket. Data moat still being built.",
+    founders: "Raj Patel (ex-Uber Freight), Elena Vasquez (ex-CH Robinson)",
+    lastActivity: "2d ago",
+    raised: "$2.5M Pre-Seed",
+    location: "Chicago, IL",
+  },
+  {
+    id: "5",
+    company: "Canopy Security",
+    sector: "Cybersecurity",
+    stage: "Series A",
+    score: 91,
+    status: "High Priority",
+    pipelineStage: "Partner Review",
+    thesis: "Identity-first cloud security posture management. Unique graph-based approach to mapping identity attack paths. $1.2M ARR, 180% NRR. Won POCs against Wiz and Orca in 3 enterprise accounts.",
+    risks: "Crowded CSPM market. May need to raise large round to compete on go-to-market. Platform risk if cloud providers build native tooling.",
+    founders: "Alex Drummond (ex-CrowdStrike), Yuki Tanaka (ex-Google Cloud Security)",
+    lastActivity: "6h ago",
+    raised: "$8M Seed",
+    location: "Austin, TX",
+  },
+  {
+    id: "6",
+    company: "Mosaic Financial",
+    sector: "Fintech",
+    stage: "Seed",
+    score: 74,
+    status: "Watching",
+    pipelineStage: "Watchlist",
+    thesis: "Embedded treasury management for SaaS companies. Automates cash positioning, yield optimization, and FX hedging. Early traction with 8 mid-market SaaS companies. $95K MRR.",
+    risks: "Banking-as-a-service partner dependency. Regulatory complexity across jurisdictions. SVB collapse changed the landscape.",
+    founders: "David Park (ex-Addepar), Lisa Chang (ex-JPMorgan Treasury)",
+    lastActivity: "3d ago",
+    raised: "$3.2M Pre-Seed",
+    location: "San Francisco, CA",
+  },
+  {
+    id: "7",
+    company: "Archetype Robotics",
+    sector: "Robotics / Industrial",
+    stage: "Series A",
+    score: 82,
+    status: "In Review",
+    pipelineStage: "Reviewing",
+    thesis: "Autonomous mobile robots for warehouse mid-aisle picking. Novel manipulation system handles 94% of SKU types vs. 60% for competitors. Deployed in 3 warehouses with $420K ARR.",
+    risks: "Hardware scaling challenges. Competition from well-funded players (Locus, 6 River). Long deployment cycles.",
+    founders: "Dr. Nina Okafor (CMU Robotics), Kevin Zhang (ex-Amazon Robotics)",
+    lastActivity: "5h ago",
+    raised: "$5M Seed",
+    location: "Pittsburgh, PA",
+  },
+  {
+    id: "8",
+    company: "Stratum Data",
+    sector: "Data Infrastructure",
+    stage: "Seed",
+    score: 77,
+    status: "Pass",
+    pipelineStage: "Pass",
+    thesis: "Real-time data quality monitoring for data pipelines. Anomaly detection catches schema drift and data quality issues before they hit production dashboards.",
+    risks: "Competing with Monte Carlo and Bigeye. Open-source alternatives gaining traction. Unclear if standalone category or feature of larger platforms.",
+    founders: "Michael Torres (ex-Databricks), Aisha Rahman (ex-Airbnb Data)",
+    lastActivity: "1w ago",
+    raised: "$2M Pre-Seed",
+    location: "Seattle, WA",
+  },
+  {
+    id: "9",
+    company: "Clearpath Education",
+    sector: "EdTech",
+    stage: "Pre-Seed",
+    score: 71,
+    status: "New",
+    pipelineStage: "New",
+    thesis: "AI-powered career navigation platform for community college students. Personalized pathway recommendations based on local labor market data. Pilot with 5 community colleges in California.",
+    risks: "EdTech buyer cycles are long. Government funding dependency. Unclear monetization at scale.",
+    founders: "Maria Santos (ex-Coursera), James Wright (community college administrator)",
+    lastActivity: "12h ago",
+    raised: "$500K Friends & Family",
+    location: "Los Angeles, CA",
+  },
+  {
+    id: "10",
+    company: "Forge Compliance",
+    sector: "RegTech",
+    stage: "Seed",
+    score: 86,
+    status: "In Review",
+    pipelineStage: "First Pass",
+    thesis: "Automated compliance monitoring for crypto exchanges and DeFi protocols. Real-time transaction screening against global sanctions lists. 22 paying customers including 3 top-20 exchanges.",
+    risks: "Regulatory landscape shifting rapidly. Crypto winter may reduce TAM. Competition from Chainalysis expanding into compliance.",
+    founders: "Ryan Kim (ex-Chainalysis), Sophie Laurent (ex-FATF advisor)",
+    lastActivity: "8h ago",
+    raised: "$3.5M Pre-Seed",
+    location: "New York, NY",
+  },
+];
+
+export const pipelineStages = ["New", "Reviewing", "First Pass", "Partner Review", "Watchlist", "Pass"];
+
+export const kpiData = {
+  dealsInInbox: 47,
+  highPriority: 8,
+  inPartnerReview: 5,
+  watchlistCompanies: 12,
+};
+
+export const recentActivity = [
+  { action: "Moved to Partner Review", company: "Canopy Security", time: "2h ago", type: "pipeline" as const },
+  { action: "Score updated to 92", company: "Luminance AI", time: "3h ago", type: "score" as const },
+  { action: "Added to Watchlist", company: "Mosaic Financial", time: "5h ago", type: "watchlist" as const },
+  { action: "New deal submitted", company: "Clearpath Education", time: "12h ago", type: "new" as const },
+  { action: "Thesis note added", company: "Parabolic Health", time: "1d ago", type: "note" as const },
+  { action: "Passed on deal", company: "Stratum Data", time: "2d ago", type: "pass" as const },
+  { action: "First meeting scheduled", company: "Forge Compliance", time: "2d ago", type: "meeting" as const },
+  { action: "Due diligence started", company: "Archetype Robotics", time: "3d ago", type: "diligence" as const },
+];

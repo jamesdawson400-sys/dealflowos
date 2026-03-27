@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+
+body {
+  background: #060a14;
+  color: #e2e8f0;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+}
+
+::selection {
+  background: rgba(99, 102, 241, 0.3);
+}

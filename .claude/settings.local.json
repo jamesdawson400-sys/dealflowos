@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm --no-turbopack)",
+      "Bash(yes \"\")",
+      "Bash(npx next:*)",
+      "Bash(kill %1)",
+      "Bash(npm install:*)",
+      "WebFetch(domain:hn.algolia.com)",
+      "Bash(npx tsc:*)",
+      "WebFetch(domain:www.ycombinator.com)",
+      "WebFetch(domain:45bwzj1sgc-dsn.algolia.net)",
+      "Bash(curl -s -X POST 'https://45bwzj1sgc-dsn.algolia.net/1/indexes/YCCompany_production/query' -H 'X-Algolia-Application-Id: 45BWZJ1SGC' -H 'X-Algolia-API-Key: 79e56932bdc6966e4001393aafbddc89ac5d60f8dc72b1c8e54d9aa6c92b29a1' -H 'Content-Type: application/json' -d '{\"\"\"\"query\"\"\"\":\"\"\"\"fintech\"\"\"\",\"\"\"\"hitsPerPage\"\"\"\":3,\"\"\"\"tagFilters\"\"\"\":[\"\"\"\"ycdc_public\"\"\"\"]}')",
+      "Bash(python3 -m json.tool)",
+      "Bash(FULL_KEY='NzllNTY5MzJiZGM2OTY2ZTQwMDEzOTNhYWZiZGRjODlhYzVkNjBmOGRjNzJiMWM4ZTU0ZDlhYTZjOTJiMjlhMWFuYWx5dGljc1RhZ3M9eWNkYyZyZXN0cmljdEluZGljZXM9WUNDb21wYW55X3Byb2R1Y3Rpb24lMkNZQ0NvbXBhbnlfQnlfTGF1bmNoX0RhdGVfcHJvZHVjdGlvbiZ0YWdGaWx0ZXJzPSU1QiUyMnljZGNfcHVibGljJTIyJTVE' curl -s -X POST 'https://45bwzj1sgc-dsn.algolia.net/1/indexes/YCCompany_production/query' -H \"X-Algolia-Application-Id: 45BWZJ1SGC\" -H \"X-Algolia-API-Key: $FULL_KEY\" -H 'Content-Type: application/json' -d '{\"\"\"\"query\"\"\"\":\"\"\"\"fintech\"\"\"\",\"\"\"\"hitsPerPage\"\"\"\":3}')",
+      "Bash(FULL_KEY='NzllNTY5MzJiZGM2OTY2ZTQwMDEzOTNhYWZiZGRjODlhYzVkNjBmOGRjNzJiMWM4ZTU0ZDlhYTZjOTJiMjlhMWFuYWx5dGljc1RhZ3M9eWNkYyZyZXN0cmljdEluZGljZXM9WUNDb21wYW55X3Byb2R1Y3Rpb24lMkNZQ0NvbXBhbnlfQnlfTGF1bmNoX0RhdGVfcHJvZHVjdGlvbiZ0YWdGaWx0ZXJzPSU1QiUyMnljZGNfcHVibGljJTIyJTVE' curl -s -X POST 'https://45bwzj1sgc-dsn.algolia.net/1/indexes/YCCompany_production/query' -H \"X-Algolia-Application-Id: 45BWZJ1SGC\" -H \"X-Algolia-API-Key: $FULL_KEY\" -H 'Content-Type: application/json' -d '{\"\"\"\"query\"\"\"\":\"\"\"\"AI infrastructure\"\"\"\",\"\"\"\"hitsPerPage\"\"\"\":2}')",
+      "Bash(curl -s -X POST http://localhost:3001/api/scan -H 'Content-Type: application/json' -d '{\"\"\"\"theme\"\"\"\":\"\"\"\"fintech\"\"\"\"}')",
+      "Bash(python3 -c \":*)",
+      "Bash(curl -sv -X POST http://localhost:3001/api/scan -H 'Content-Type: application/json' -d '{\"\"\"\"theme\"\"\"\":\"\"\"\"fintech\"\"\"\"}')",
+      "Bash(npm run:*)",
+      "Bash(curl -s -X POST http://localhost:3001/api/scan -H 'Content-Type: application/json' -d '{\"\"\"\"theme\"\"\"\":\"\"\"\"cybersecurity\"\"\"\"}')",
+      "Bash(pkill -f \"next dev\")"
+    ]
+  }
+}
