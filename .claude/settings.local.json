@@ -20,7 +20,8 @@
       "Bash(npm run:*)",
       "Bash(curl -s -X POST http://localhost:3001/api/scan -H 'Content-Type: application/json' -d '{\"\"\"\"theme\"\"\"\":\"\"\"\"cybersecurity\"\"\"\"}')",
       "Bash(pkill -f \"next dev\")",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(/usr/local/bin/node node_modules/.bin/tsc --noEmit)"
     ]
   }
 }

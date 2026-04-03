@@ -1,11 +1,6 @@
 // ──────────────────────────────────────────────
-// Web Retrieval Layer — REAL COMPANIES ONLY
-//
-// Primary source: Y Combinator Company Directory (Algolia API)
-// Every company returned is a real YC-backed startup with a verified website.
-//
-// No synthetic generation. No placeholders. No inferred companies.
-// If real companies cannot be retrieved → returns empty array.
+// Web Retrieval — YC Directory (Algolia API)
+// Real companies only. No generation. No fallback.
 // ──────────────────────────────────────────────
 
 export interface WebDeal {
@@ -19,184 +14,145 @@ export interface WebDeal {
   subindustry: string;
   location: string;
   batch: string;
+  launchedAt: number; // unix timestamp
   teamSize: number;
   tags: string[];
   ycStatus: string;
   ycStage: string;
   isTopCompany: boolean;
   logoUrl: string;
-  signals: {
-    points?: number;
-    comments?: number;
-    recencyDays?: number;
-  };
 }
 
-// ── YC Algolia API credentials (public, embedded in ycombinator.com/companies) ──
-const YC_ALGOLIA_APP_ID = "45BWZJ1SGC";
-const YC_ALGOLIA_API_KEY =
+const YC_APP_ID = "45BWZJ1SGC";
+const YC_API_KEY =
   "NzllNTY5MzJiZGM2OTY2ZTQwMDEzOTNhYWZiZGRjODlhYzVkNjBmOGRjNzJiMWM4ZTU0ZDlhYTZjOTJiMjlhMWFuYWx5dGljc1RhZ3M9eWNkYyZyZXN0cmljdEluZGljZXM9WUNDb21wYW55X3Byb2R1Y3Rpb24lMkNZQ0NvbXBhbnlfQnlfTGF1bmNoX0RhdGVfcHJvZHVjdGlvbiZ0YWdGaWx0ZXJzPSU1QiUyMnljZGNfcHVibGljJTIyJTVE";
-const YC_ALGOLIA_INDEX = "YCCompany_production";
-const YC_ALGOLIA_URL = `https://${YC_ALGOLIA_APP_ID.toLowerCase()}-dsn.algolia.net/1/indexes/${YC_ALGOLIA_INDEX}/query`;
+const YC_URL = `https://${YC_APP_ID.toLowerCase()}-dsn.algolia.net/1/indexes/YCCompany_production/query`;
 
-// ── Fetch from YC Directory ──
 async function fetchYCCompanies(theme: string, signal: AbortSignal): Promise<WebDeal[]> {
-  const deals: WebDeal[] = [];
+  const res = await fetch(YC_URL, {
+    method: "POST",
+    signal,
+    headers: {
+      "X-Algolia-Application-Id": YC_APP_ID,
+      "X-Algolia-API-Key": YC_API_KEY,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query: theme, hitsPerPage: 24 }),
+  });
 
-  try {
-    const res = await fetch(YC_ALGOLIA_URL, {
-      method: "POST",
-      signal,
-      headers: {
-        "X-Algolia-Application-Id": YC_ALGOLIA_APP_ID,
-        "X-Algolia-API-Key": YC_ALGOLIA_API_KEY,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query: theme,
-        hitsPerPage: 20,
-      }),
+  if (!res.ok) {
+    console.log(`[YC] API error: ${res.status}`);
+    return [];
+  }
+
+  const data = await res.json();
+  const hits = data.hits ?? [];
+  console.log(`[YC] Raw hits: ${hits.length} (${data.nbHits} total matches)`);
+
+  const deals: WebDeal[] = [];
+  for (const hit of hits) {
+    const name: string = hit.name ?? "";
+    const website: string = hit.website ?? "";
+    const oneLiner: string = hit.one_liner ?? "";
+    const longDesc: string = hit.long_description ?? "";
+
+    if (!website || website.length < 5 || !name) continue;
+    if (!oneLiner && !longDesc) continue;
+
+    const description = longDesc
+      ? longDesc.replace(/\r\n/g, " ").replace(/\n/g, " ").replace(/\s{2,}/g, " ").trim().slice(0, 400)
+      : oneLiner;
+
+    const slug: string = hit.slug ?? name.toLowerCase().replace(/\s+/g, "-");
+
+    deals.push({
+      name,
+      description,
+      oneLiner: oneLiner || name,
+      website,
+      sourceUrl: `https://www.ycombinator.com/companies/${slug}`,
+      sourceName: "YC Directory",
+      industry: hit.industry ?? "",
+      subindustry: hit.subindustry ?? "",
+      location: hit.all_locations?.split(";")[0]?.trim() ?? "",
+      batch: hit.batch ?? "",
+      launchedAt: hit.launched_at ?? 0,
+      teamSize: hit.team_size ?? 0,
+      tags: hit.tags ?? [],
+      ycStatus: hit.status ?? "Active",
+      ycStage: hit.stage ?? "Early",
+      isTopCompany: hit.top_company ?? false,
+      logoUrl: hit.small_logo_thumb_url ?? "",
     });
 
-    if (!res.ok) {
-      console.log(`[YC API] Search failed: ${res.status}`);
-      return [];
-    }
-
-    const data = await res.json();
-    const hits = data.hits ?? [];
-    const totalHits = data.nbHits ?? 0;
-
-    console.log(`[YC API] Raw response: ${hits.length} hits returned (${totalHits} total matches)`);
-
-    for (const hit of hits) {
-      const name: string = hit.name ?? "";
-      const website: string = hit.website ?? "";
-      const oneLiner: string = hit.one_liner ?? "";
-      const longDesc: string = hit.long_description ?? "";
-      const status: string = hit.status ?? "";
-
-      // STRICT: Must have a real website
-      if (!website || website.length < 5) {
-        console.log(`[YC API] ✗ SKIP (no website): ${name}`);
-        continue;
-      }
-
-      // Must have a real name
-      if (!name || name.length < 2) {
-        continue;
-      }
-
-      // Must have some description
-      if (!oneLiner && !longDesc) {
-        console.log(`[YC API] ✗ SKIP (no description): ${name}`);
-        continue;
-      }
-
-      // Clean the description (use one_liner primarily, long_description as supplement)
-      const description = longDesc
-        ? longDesc.replace(/\r\n/g, " ").replace(/\n/g, " ").slice(0, 300)
-        : oneLiner;
-
-      const slug: string = hit.slug ?? name.toLowerCase().replace(/\s+/g, "-");
-      const sourceUrl = `https://www.ycombinator.com/companies/${slug}`;
-
-      deals.push({
-        name,
-        description,
-        oneLiner,
-        website,
-        sourceUrl,
-        sourceName: "YC Directory",
-        industry: hit.industry ?? "",
-        subindustry: hit.subindustry ?? "",
-        location: hit.all_locations ?? "",
-        batch: hit.batch ?? "",
-        teamSize: hit.team_size ?? 0,
-        tags: hit.tags ?? [],
-        ycStatus: status,
-        ycStage: hit.stage ?? "",
-        isTopCompany: hit.top_company ?? false,
-        logoUrl: hit.small_logo_thumb_url ?? "",
-        signals: {
-          points: hit.team_size ?? 0,
-        },
-      });
-
-      console.log(`[YC API] ✓ VALID: ${name} (${hit.batch ?? "?"}) → ${website}`);
-    }
-  } catch (err) {
-    console.log(`[YC API] Network error: ${err}`);
+    console.log(`[YC] ✓ ${name} (${hit.batch}) team:${hit.team_size} top:${hit.top_company}`);
   }
 
   return deals;
 }
 
-// URL validation removed — YC Directory only lists active companies with verified websites.
-// All websites returned by the YC Algolia API are real, published URLs.
-
-// ── Scoring ──
+// ── Differentiated scoring ──
 export function scoreWebDeal(
   deal: WebDeal,
   keywords: string[],
 ): { growth: number; momentum: number; volatility: number; thematicFit: number; total: number } {
-  // Growth proxy: team size + YC stage + top company status
-  let growth = 30;
-  if (deal.teamSize > 100) growth = 90;
-  else if (deal.teamSize > 50) growth = 80;
-  else if (deal.teamSize > 20) growth = 70;
-  else if (deal.teamSize > 10) growth = 55;
-  else if (deal.teamSize > 5) growth = 45;
-  if (deal.isTopCompany) growth = Math.min(95, growth + 15);
-  if (deal.ycStage === "Growth") growth = Math.min(95, growth + 10);
 
-  // Momentum proxy: status + recency of batch
-  let momentum = 40;
-  if (deal.ycStatus === "Active") momentum += 25;
-  else if (deal.ycStatus === "Acquired") momentum += 15;
-  else if (deal.ycStatus === "Inactive") momentum -= 20;
-  // Recent batches score higher
+  // Growth — log scale team size + top company + YC stage
+  const logTeam = deal.teamSize > 0 ? Math.log10(deal.teamSize) * 22 : 0;
+  let growth = Math.min(92, Math.round(28 + logTeam));
+  if (deal.isTopCompany) growth = Math.min(96, growth + 18);
+  if (deal.ycStage === "Growth") growth = Math.min(94, growth + 8);
+
+  // Momentum — batch recency + status + top company
   const batchYear = parseInt(deal.batch.match(/\d{4}/)?.[0] ?? "0");
   const currentYear = new Date().getFullYear();
-  if (batchYear >= currentYear) momentum += 15;
-  else if (batchYear >= currentYear - 1) momentum += 10;
-  else if (batchYear >= currentYear - 2) momentum += 5;
-  momentum = Math.max(10, Math.min(95, momentum));
+  const batchAge = currentYear - batchYear;
+  let momentum = 35;
+  if (deal.ycStatus === "Active") momentum += 22;
+  else if (deal.ycStatus === "Acquired") momentum += 10;
+  else if (deal.ycStatus === "Inactive") momentum -= 15;
+  if (batchAge <= 1) momentum += 22;
+  else if (batchAge <= 2) momentum += 16;
+  else if (batchAge <= 3) momentum += 10;
+  else if (batchAge <= 5) momentum += 5;
+  if (deal.isTopCompany) momentum = Math.min(96, momentum + 12);
+  momentum = Math.max(10, Math.min(96, momentum));
 
-  // Risk/volatility: inverse of information quality
-  let volatility = 30;
-  if (!deal.description || deal.description.length < 30) volatility += 20;
-  if (deal.teamSize === 0) volatility += 10;
-  if (deal.ycStatus === "Inactive") volatility += 20;
-  if (deal.ycStatus === "Acquired") volatility += 10;
-  volatility = Math.min(90, volatility);
+  // Volatility/Risk — inverse of quality signals
+  let volatility = 28;
+  if (deal.teamSize === 0) volatility += 18;
+  else if (deal.teamSize < 5) volatility += 14;
+  else if (deal.teamSize < 10) volatility += 8;
+  if (deal.ycStatus === "Inactive") volatility += 22;
+  if (deal.ycStatus === "Acquired") volatility += 12;
+  if (batchAge > 6) volatility += 8;
+  if (!deal.description || deal.description.length < 40) volatility += 10;
+  if (deal.isTopCompany) volatility = Math.max(10, volatility - 12);
+  volatility = Math.min(88, volatility);
 
-  // Thematic fit: keyword match against name + description + tags
-  const textLower = (deal.name + " " + deal.oneLiner + " " + deal.description + " " + deal.tags.join(" ") + " " + deal.industry + " " + deal.subindustry).toLowerCase();
-  const kwLower = keywords.map((k) => k.toLowerCase()).filter((k) => k.length > 1);
-  let matchCount = 0;
-  for (const kw of kwLower) {
-    if (textLower.includes(kw)) matchCount++;
-  }
-  const thematicFit = Math.min(95, 30 + Math.floor((matchCount / Math.max(1, kwLower.length)) * 65));
+  // Thematic fit — keyword match across all text
+  const corpus = [deal.name, deal.oneLiner, deal.description, ...deal.tags, deal.industry, deal.subindustry]
+    .join(" ")
+    .toLowerCase();
+  const kws = keywords.map((k) => k.toLowerCase()).filter((k) => k.length > 1);
+  const matchCount = kws.filter((kw) => corpus.includes(kw)).length;
+  const thematicFit = Math.min(96, Math.round(25 + (matchCount / Math.max(1, kws.length)) * 70));
 
-  const total = Math.max(15, Math.min(98, Math.round(
-    0.4 * growth + 0.3 * momentum - 0.2 * volatility + 0.1 * thematicFit,
-  )));
+  // Final score — top companies get a flat bonus so they visibly outrank others
+  const topBonus = deal.isTopCompany ? 18 : 0;
+  const raw = 0.38 * growth + 0.28 * momentum - 0.18 * volatility + 0.16 * thematicFit + topBonus;
+  const total = Math.max(15, Math.min(98, Math.round(raw)));
 
   return { growth, momentum, volatility, thematicFit, total };
 }
 
-// ── Main entry point ──
 export async function fetchRealDeals(theme: string): Promise<WebDeal[]> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20000);
-
-  console.log(`\n[WebRetrieval] Starting YC scan for theme: "${theme}"`);
-
+  console.log(`\n[WebRetrieval] Scanning YC Directory for: "${theme}"`);
   try {
     const deals = await fetchYCCompanies(theme, controller.signal);
-    console.log(`[WebRetrieval] Found ${deals.length} companies from YC Directory`);
+    console.log(`[WebRetrieval] Returning ${deals.length} companies\n`);
     return deals;
   } finally {
     clearTimeout(timeout);

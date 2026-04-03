@@ -53,7 +53,7 @@ function SourceBadge({ source }: { source?: string }) {
 }
 
 export default function DealInbox() {
-  const { deals, scanDeals, hasScanned, lastTheme, isScanning, toggleWatchlist } = useScan();
+  const { deals, scanDeals, hasScanned, lastTheme, isScanning, toggleWatchlist, selectCompany, selectedDeal } = useScan();
 
   // Build a lookup for scan deal metadata (website, source)
   const scanDealMap = new Map(scanDeals.map((sd) => [sd.id, sd]));
@@ -126,7 +126,11 @@ export default function DealInbox() {
                   const sourceName = sd?.sourceName;
 
                   return (
-                    <tr key={deal.id} className="transition-colors hover:bg-white/[0.02]">
+                    <tr
+                      key={deal.id}
+                      onClick={() => hasScanned && selectCompany(deal.id)}
+                      className={`transition-colors ${hasScanned ? "cursor-pointer hover:bg-white/[0.03]" : ""} ${selectedDeal?.id === deal.id ? "bg-blue-500/[0.06] border-l-2 border-l-blue-500/40" : ""}`}
+                    >
                       <td className="whitespace-nowrap px-5 py-4">
                         <div className="flex items-center gap-3">
                           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-slate-700 to-slate-800 text-xs font-bold text-white">

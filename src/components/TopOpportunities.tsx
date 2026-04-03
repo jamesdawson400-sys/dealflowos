@@ -3,7 +3,7 @@
 import { useScan } from "@/context/ScanContext";
 
 export default function TopOpportunities() {
-  const { topOpportunities, hasScanned } = useScan();
+  const { topOpportunities, hasScanned, selectCompany, selectedDeal } = useScan();
 
   if (!hasScanned || topOpportunities.length === 0) return null;
 
@@ -22,7 +22,8 @@ export default function TopOpportunities() {
         {topOpportunities.slice(0, 3).map((deal, idx) => (
           <div
             key={deal.id}
-            className="group relative overflow-hidden rounded-xl border border-amber-500/10 bg-gradient-to-br from-amber-950/20 to-[#0a0e1a] p-5 transition-all hover:border-amber-500/20"
+            onClick={() => selectCompany(deal.id)}
+            className={`group relative cursor-pointer overflow-hidden rounded-xl border bg-gradient-to-br from-amber-950/20 to-[#0a0e1a] p-5 transition-all hover:border-amber-500/20 ${selectedDeal?.id === deal.id ? "border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.07)]" : "border-amber-500/10"}`}
           >
             {/* Rank badge */}
             <div className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/10 text-xs font-bold text-amber-400">

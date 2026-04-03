@@ -23,6 +23,7 @@ interface ScanState {
   kpis: typeof defaultKpis;
   scanDeals: ScanDeal[];
   topOpportunities: ScanDeal[];
+  selectedDeal: ScanDeal | null;
   activity: DbActivity[];
   watchlist: Deal[];
   scanHistory: ScanHistoryItem[];
@@ -35,6 +36,7 @@ interface ScanState {
   updatePipelineStage: (companyId: string, newStage: string) => Promise<void>;
   toggleWatchlist: (companyId: string) => Promise<void>;
   addNote: (companyId: string, content: string) => Promise<void>;
+  selectCompany: (id: string) => void;
 }
 
 const ScanContext = createContext<ScanState | null>(null);
@@ -76,6 +78,7 @@ function dbCompanyToScanDeal(c: DbCompany): ScanDeal {
     pipelineStage: c.pipeline_stage,
     thesis: (() => { try { return JSON.parse(c.thesis); } catch { return [c.thesis]; } })(),
     risks: (() => { try { return JSON.parse(c.risks); } catch { return [c.risks]; } })(),
+    diligence: [],
     founders: c.founders,
     lastActivity: c.last_activity,
     raised: c.raised,
@@ -126,6 +129,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
   const [scanHistory, setScanHistory] = useState<ScanHistoryItem[]>([]);
   const [webDealCount, setWebDealCount] = useState(0);
   const [generatedDealCount, setGeneratedDealCount] = useState(0);
+  const [selectedDealId, setSelectedDealId] = useState<string | null>(null);
 
   // Load persisted state on mount
   useEffect(() => {
@@ -339,6 +343,14 @@ export function ScanProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const selectCompany = useCallback((id: string) => {
+    setSelectedDealId(id);
+    // Scroll to detail panel after a tick
+    setTimeout(() => {
+      document.getElementById("company-detail")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }, []);
+
   const resetToDefault = useCallback(() => {
     setDeals(defaultDeals);
     setKpis(defaultKpis);
@@ -350,7 +362,12 @@ export function ScanProvider({ children }: { children: ReactNode }) {
     setLastScanId(null);
     setWebDealCount(0);
     setGeneratedDealCount(0);
+    setSelectedDealId(null);
   }, []);
+
+  const selectedDeal = selectedDealId
+    ? (scanDeals.find((d) => d.id === selectedDealId) ?? scanDeals[0] ?? null)
+    : (scanDeals[0] ?? null);
 
   return (
     <ScanContext.Provider
@@ -365,6 +382,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
         kpis,
         scanDeals,
         topOpportunities,
+        selectedDeal,
         activity,
         watchlist,
         scanHistory,
@@ -377,6 +395,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
         updatePipelineStage,
         toggleWatchlist: toggleWatchlistFn,
         addNote,
+        selectCompany,
       }}
     >
       {children}

@@ -14,6 +14,7 @@ export interface ScanDeal {
   pipelineStage: string;
   thesis: string[];
   risks: string[];
+  diligence?: string[];
   founders: string;
   lastActivity: string;
   raised: string;
@@ -27,6 +28,17 @@ export interface ScanDeal {
   description?: string;
   sourceUrl?: string;
   sourceName?: string;
+  ycData?: {
+    batch: string;
+    teamSize: number;
+    isTopCompany: boolean;
+    ycStatus: string;
+    ycStage: string;
+    tags: string[];
+    subindustry: string;
+    logoUrl: string;
+    oneLiner: string;
+  };
 }
 
 export interface ScanResult {
