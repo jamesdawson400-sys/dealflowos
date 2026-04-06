@@ -39,6 +39,15 @@ export interface ScanDeal {
     logoUrl: string;
     oneLiner: string;
   };
+  memo?: string;
+  scoreBreakdown?: {
+    marketOpportunity: number;
+    sectorGrowth: number;
+    founderCredibility: number;
+    fundingMomentum: number;
+    productDifferentiation: number;
+    total: number;
+  };
 }
 
 export interface ScanResult {
