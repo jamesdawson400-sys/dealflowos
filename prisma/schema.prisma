@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model Scan {
+  id           String    @id @default(uuid())
+  theme        String
+  timestamp    String
+  dealCount    Int
+  kpiInbox     Int
+  kpiHigh      Int
+  kpiPartner   Int
+  kpiWatchlist Int
+  companies    Company[]
+}
+
+model Company {
+  id            String        @id @default(uuid())
+  scanId        String
+  company       String
+  sector        String
+  stage         String
+  score         Int
+  status        String
+  pipelineStage String
+  thesis        String        @default("[]")
+  risks         String        @default("[]")
+  founders      String
+  lastActivity  String
+  raised        String
+  location      String
+  website       String?
+  description   String?
+  sourceUrl     String?
+  sourceName    String?
+  isWatchlisted Int           @default(0)
+  growth        Int           @default(50)
+  momentum      Int           @default(50)
+  volatility    Int           @default(50)
+  thematicFit   Int           @default(50)
+  createdAt     String        @default("")
+  updatedAt     String        @default("")
+  scan          Scan          @relation(fields: [scanId], references: [id])
+  notes         Note[]
+  activity      ActivityLog[]
+
+  @@index([scanId])
+  @@index([isWatchlisted])
+}
+
+model Note {
+  id        String  @id @default(uuid())
+  companyId String
+  content   String
+  createdAt String  @default("")
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+}
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  companyId   String?
+  action      String
+  companyName String
+  type        String
+  createdAt   String   @default("")
+  company     Company? @relation(fields: [companyId], references: [id])
+
+  @@index([createdAt])
+}

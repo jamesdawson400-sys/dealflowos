@@ -6,8 +6,6 @@ if (!process.env.NODE_TLS_REJECT_UNAUTHORIZED) {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 }
 
-const nextConfig: NextConfig = {
-  serverExternalPackages: ["better-sqlite3"],
-};
+const nextConfig: NextConfig = {};
 
 export default nextConfig;
